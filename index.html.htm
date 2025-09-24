@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PluggKompis — MVP</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --card:#fff; --muted:#6b7280; --accent:#2563eb;
+      --success:#10b981; --danger:#ef4444; --glass: rgba(255,255,255,0.6);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,#eef2ff 0%, #ffffff 60%);
+      color:#0f172a;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:16px;
+      display:flex;
+      justify-content:center;
+    }
+    .app{
+      width:100%;
+      max-width:420px;
+    }
+    header{ text-align:center; margin-bottom:12px }
+    h1{ margin:6px 0; font-size:20px; color:var(--accent) }
+    p.lead{ margin:0; color:var(--muted); font-size:13px }
+
+    /* Card */
+    .card{
+      background:var(--card);
+      border-radius:14px;
+      padding:12px;
+      box-shadow:0 6px 18px rgba(16,24,40,0.06);
+      margin-bottom:12px;
+    }
+
+    /* Dashboard progress */
+    .progress-wrap{ display:flex; flex-direction:column; gap:8px; align-items:center }
+    .progress-bar{ width:100%; background:#eef2ff; height:10px; border-radius:999px; overflow:hidden }
+    .progress-fill{ height:100%; background:var(--accent); width:0%; transition:width .5s ease; }
+
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+    .btn{
+      display:inline-block; text-align:center; padding:10px 12px; border-radius:10px; cursor:pointer;
+      border:none; background:var(--accent); color:white; font-weight:600;
+    }
+    .btn.secondary{ background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,.12) }
+    .small{ font-size:13px; padding:8px 10px }
+
+    /* Timer */
+    .timer{
+      font-size:44px; font-weight:700; letter-spacing:1px; margin-top:8px;
+    }
+    .center{ text-align:center }
+
+    /* Courses list */
+    .list{ display:flex; flex-direction:column; gap:8px; margin-top:8px }
+    .list-item{
+      padding:10px; border-radius:10px; background:linear-gradient(180deg,#fff,#fbfdff);
+      border:1px solid rgba(15,23,42,0.03);
+      display:flex; justify-content:space-between; align-items:center; gap:8px;
+      font-size:14px;
+    }
+    .muted{ color:var(--muted); font-size:13px }
+
+    /* Quiz */
+    .card-quiz{ min-height:110px; display:flex; align-items:center; justify-content:center; font-size:16px; text-align:center; cursor:pointer; user-select:none }
+    .card-quiz .answer{ color:var(--muted); font-weight:600 }
+
+    /* Stats */
+    .stats-row{ display:flex; justify-content:space-between; gap:8px; margin-top:8px }
+    .stat{ flex:1; background:linear-gradient(180deg,#fff,#fbfdff); padding:12px; border-radius:10px; text-align:center; border:1px solid rgba(15,23,42,0.03) }
+    .stat .value{ font-weight:700; font-size:18px }
+
+    /* Forms */
+    .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px }
+    input, button, select{ font-family:inherit }
+    input[type="text"], input[type="date"], input[type="number"]{
+      padding:10px; border-radius:8px; border:1px solid rgba(15,23,42,0.06); outline:none;
+      font-size:14px;
+    }
+
+    footer{ margin-top:12px; font-size:13px; color:var(--muted); text-align:center }
+
+    /* Small screens spacing */
+    @media(min-width:600px){
+      body{ padding:24px }
+      h1{ font-size:22px }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <h1>PluggKompis</h1>
+      <p class="lead">Plugga smartare — mobile first prototype</p>
+    </header>
+
+    <!-- Onboarding / Add course card -->
+    <section class="card" id="onboardingCard">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Starta en kurs</strong>
+        <small class="muted">Lägg till kurs & deadline</small>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="field">
+          <input id="courseName" type="text" placeholder="Kursnamn (ex. Psykologi 1)">
+        </div>
+        <div class="field">
+          <input id="courseDeadline" type="date" placeholder="Deadline">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="addCourseBtn">Lägg till kurs</button>
+          <button class="btn secondary" id="hideOnboardingBtn">Hoppa över</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section class="card" id="dashboardCard">
+      <div class="progress-wrap">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Veckans mål</strong></div>
+          <div class="muted small" id="progressText">0/3 pluggpass klara</div>
+        </div>
+        <div class="progress-bar" aria-hidden>
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; display:flex; justify-content:space-between; gap:8px;">
+        <button class="btn" id="startFocusBtn">Starta pluggpass</button>
+        <button class="btn secondary" id="openCoursesBtn">Kurser</button>
+        <button class="btn secondary" id="openQuizBtn">Quiz</button>
+      </div>
+      <div style="margin-top:8px" class="muted">Dagens mål: <span id="todaysGoal">Inget mål än</span></div>
+    </section>
+
+    <!-- Fokusläge -->
+    <section class="card center" id="focusCard" style="display:none">
+      <div><strong>Fokusläge</strong></div>
+      <div class="timer" id="timerDisplay">25:00</div>
+      <div style="margin-top:10px; display:flex; gap:8px; justify-content:center;">
+        <button class="btn small" id="timerStartBtn">Start</button>
+        <button class="btn small" id="timerPauseBtn">Pausa</button>
+        <button class="btn small" id="timerResetBtn">Reset</button>
+      </div>
+      <div style="margin-top:8px" class="muted" id="focusHint">Jobba i 25 minuter, ta 5 min paus.</div>
+    </section>
+
+    <!-- Kurser -->
+    <section class="card" id="coursesCard" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Dina kurser</strong>
+        <button class="btn small" id="closeCoursesBtn">Stäng</button>
+      </div>
+      <div class="list" id="coursesList"></div>
+
+      <div style="margin-top:10px">
+        <div style="display:flex;gap:8px">
+          <input id="quickCourseName" type="text" placeholder="Ny kurs">
+          <input id="quickDeadline" type="date">
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button class="btn small" id="addQuickCourseBtn">Lägg till</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quiz -->
+    <section class="card" id="quizCard" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Quiz & Flashcards</strong>
+        <button class="btn small" id="closeQuizBtn">Stäng</button>
+      </div>
+
+      <div class="card-quiz" id="flashcard" role="button" tabindex="0" aria-label="Flashcard">
+        <div id="flashText">Klicka för att visa fråga</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
+        <button class="btn small" id="prevCard">Föregående</button>
+        <button class="btn small" id="nextCard">Nästa</button>
+      </div>
+    </section>
+
+    <!-- Statistik -->
+    <section class="card" id="statsCard">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Statistik</strong>
+        <small class="muted">Senaste uppdatering</small>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="value" id="statMinutes">0m</div><div class="muted">Pluggat totalt</div></div>
+        <div class="stat"><div class="value" id="statSessions">0</div><div class="muted">Pluggpass</div></div>
+        <div class="stat"><div class="value" id="statStreak">0</div><div class="muted">Streak</div></div>
+      </div>
+    </section>
+
+    <footer>PluggKompis — MVP • Spara lokalt i din webbläsare</footer>
+  </div>
+
+  <script>
+    /**********************
+     * Enkel mobil-first PluggKompis MVP
+     * Lagrar i localStorage
+     **********************/
+    const DAILY_GOAL = 3; // standardmål per dag (kan göras dynamiskt senare)
+    // --- State & storage helpers
+    const STORAGE_KEY = 'pluggkompis_data_v1';
+    const nowKey = () => new Date().toISOString().slice(0,10);
+
+    function loadState(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return {
+        courses: [],
+        sessions: [], // {date: 'YYYY-MM-DD', minutes: 25}
+        totalMinutes: 0,
+        streak: 0,
+        todaySessions: 0,
+        hideOnboarding: false,
+      };
+      try{ return JSON.parse(raw); } catch(e){ return { courses: [], sessions: [], totalMinutes:0, streak:0, todaySessions:0, hideOnboarding:false };}
+    }
+    function saveState(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+    }
+
+    let state = loadState();
+
+    // --- UI refs
+    const onboardingCard = document.getElementById('onboardingCard');
+    const addCourseBtn = document.getElementById('addCourseBtn');
+    const hideOnboardingBtn = document.getElementById('hideOnboardingBtn');
+    const courseName = document.getElementById('courseName');
+    const courseDeadline = document.getElementById('courseDeadline');
+
+    const progressText = document.getElementById('progressText');
+    const progressFill = document.getElementById('progressFill');
+    const todaysGoal = document.getElementById('todaysGoal');
+
+    const startFocusBtn = document.getElementById('startFocusBtn');
+    const openCoursesBtn = document.getElementById('openCoursesBtn');
+    const openQuizBtn = document.getElementById('openQuizBtn');
+
+    const focusCard = document.getElementById('focusCard');
+    const focusHint = document.getElementById('focusHint');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerStartBtn = document.getElementById('timerStartBtn');
+    const timerPauseBtn = document.getElementById('timerPauseBtn');
+    const timerResetBtn = document.getElementById('timerResetBtn');
+
+    const coursesCard = document.getElementById('coursesCard');
+    const coursesList = document.getElementById('coursesList');
+    const openCoursesClose = document.getElementById('closeCoursesBtn');
+    const quickCourseName = document.getElementById('quickCourseName');
+    const quickDeadline = document.getElementById('quickDeadline');
+    const addQuickCourseBtn = document.getElementById('addQuickCourseBtn');
+
+    const quizCard = document.getElementById('quizCard');
+    const flashcard = document.getElementById('flashcard');
+    const flashText = document.getElementById('flashText');
+    const prevCardBtn = document.getElementById('prevCard');
+    const nextCardBtn = document.getElementById('nextCard');
+    const closeQuizBtn = document.getElementById('closeQuizBtn');
+
+    const statMinutes = document.getElementById('statMinutes');
+    const statSessions = document.getElementById('statSessions');
+    const statStreak = document.getElementById('statStreak');
+
+    // --- Sample flashcards (kan utökas eller hämtas från server/AI senare)
+    const flashcards = [
+      {q: "Vad är fotosyntes?", a: "Processen där växter omvandlar ljusenergi till kemisk energi."},
+      {q: "Vad betyder 'streak' i appar?", a: "Antal dagar i rad du använt appen."},
+      {q: "Vilket år började andra världskriget?", a: "1939."}
+    ];
+    let cardIndex = 0;
+    let showAnswer = false;
+
+    // --- Timer (Pomodoro) implementation
+    let timerSeconds = 25*60;
+    let timerInterval = null;
+    let timerRunning = false;
+
+    function formatTime(s){
+      const m = Math.floor(s/60);
+      const sec = s % 60;
+      return `${m}:${String(sec).padStart(2,'0')}`;
+    }
+
+    function startTimer(){
+      if(timerRunning) return;
+      timerRunning = true;
+      timerInterval = setInterval(() => {
+        if(timerSeconds > 0){
+          timerSeconds--;
+          timerDisplay.textContent = formatTime(timerSeconds);
+        } else {
+          completeSession();
+          stopTimer();
+          // show short visual feedback
+          focusHint.textContent = "Bra jobbat! 🎉 Pausa 5 minuter.";
+        }
+      }, 1000);
+      timerStartBtn.disabled = true;
+    }
+
+    function stopTimer(){
+      timerRunning = false;
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerStartBtn.disabled = false;
+    }
+
+    function resetTimer(){
+      stopTimer();
+      timerSeconds = 25*60;
+      timerDisplay.textContent = formatTime(timerSeconds);
+      focusHint.textContent = "Jobba i 25 minuter, ta 5 min paus.";
+    }
+
+    function completeSession(){
+      // register 25 min session (or actual elapsed)
+      const mins = Math.round((25*60 - timerSeconds) / 60) || 25;
+      state.sessions.push({ date: nowKey(), minutes: mins });
+      state.totalMinutes += mins;
+      // update today's session count
+      const today = nowKey();
+      const todays = state.sessions.filter(s => s.date === today).length;
+      state.todaySessions = todays;
+      // update streak (simple heuristic: if used today, streak++ if yesterday used else reset)
+      updateStreak();
+      saveState();
+    }
+
+    function updateStreak(){
+      const days = new Set(state.sessions.map(s => s.date));
+      // compute streak by checking back from today
+      let streak = 0;
+      const today = new Date();
+      for(let i=0;i<365;i++){
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = d.toISOString().slice(0,10);
+        if(days.has(key)) streak++;
+        else break;
+      }
+      state.streak = streak;
+    }
+
+    // --- Courses functions
+    function renderCourses(){
+      coursesList.innerHTML = '';
+      if(state.courses.length === 0){
+        const el = document.createElement('div');
+        el.className = 'muted';
+        el.textContent = 'Inga kurser än. Lägg till en kurs ovan.';
+        coursesList.appendChild(el);
+        return;
+      }
+      state.courses.forEach((c, idx) => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        const left = document.createElement('div');
+        left.innerHTML = `<div style="font-weight:700">${escapeHtml(c.name)}</div><div class="muted">${c.deadline || ''}</div>`;
+        const right = document.createElement('div');
+        right.style.display='flex';
+        right.style.gap='8px';
+        const del = document.createElement('button');
+        del.className = 'btn small';
+        del.textContent = 'Ta bort';
+        del.onclick = () => { state.courses.splice(idx,1); saveState(); };
+        right.appendChild(del);
+        item.appendChild(left);
+        item.appendChild(right);
+        coursesList.appendChild(item);
+      });
+    }
+
+    function addCourse(name, deadline){
+      if(!name) return;
+      state.courses.push({ name: name.trim(), deadline: deadline || '' });
+      saveState();
+    }
+
+    // --- Progress render
+    function calcDailyProgress(){
+      const today = nowKey();
+      const todays = state.sessions.filter(s => s.date === today).length;
+      state.todaySessions = todays;
+      return { done: todays, goal: DAILY_GOAL };
+    }
+
+    function renderProgress(){
+      const p = calcDailyProgress();
+      progressText.textContent = `${p.done}/${p.goal} pluggpass klara`;
+      const pct = Math.min(100, Math.round((p.done / p.goal) * 100));
+      progressFill.style.width = pct + '%';
+      todaysGoal.textContent = (state.courses.length>0) ? `Föreslaget: Läs 10 sidor i ${state.courses[0].name}` : 'Inget mål än';
+      // Stats
+      statMinutes.textContent = `${state.totalMinutes}m`;
+      statSessions.textContent = `${state.sessions.length}`;
+      statStreak.textContent = `${state.streak}`;
+    }
+
+    // --- Flashcards render
+    function renderFlashcard(){
+      const card = flashcards[cardIndex];
+      if(!card) { flashText.textContent = 'Inga kort'; return; }
+      flashText.textContent = showAnswer ? card.a : card.q;
+      flashText.className = showAnswer ? 'answer' : '';
+    }
+
+    // --- Utility
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]) ); }
+
+    // --- Event bindings
+    addCourseBtn.addEventListener('click', () => {
+      addCourse(courseName.value, courseDeadline.value);
+      courseName.value = '';
+      courseDeadline.value = '';
+      onboardingCard.style.display = state.hideOnboarding ? 'none' : 'block';
+    });
+    hideOnboardingBtn.addEventListener('click', () => {
+      state.hideOnboarding = true;
+      saveState();
+      onboardingCard.style.display = 'none';
+    });
+
+    startFocusBtn.addEventListener('click', () => {
+      // show focus card
+      document.getElementById('dashboardCard').style.display = 'none';
+      focusCard.style.display = 'block';
+      resetTimer();
+      startTimer();
+    });
+
+    timerStartBtn.addEventListener('click', startTimer);
+    timerPauseBtn.addEventListener('click', () => {
+      if(timerRunning) stopTimer();
+      else startTimer();
+    });
+    timerResetBtn.addEventListener('click', resetTimer);
+
+    openCoursesBtn.addEventListener('click', () => {
+      document.getElementById('dashboardCard').style.display = 'none';
+      coursesCard.style.display = 'block';
+    });
+    openCoursesClose.addEventListener('click', () => {
+      coursesCard.style.display = 'none';
+      document.getElementById('dashboardCard').style.display = 'block';
+    });
+
+    addQuickCourseBtn.addEventListener('click', () => {
+      addCourse(quickCourseName.value, quickDeadline.value);
+      quickCourseName.value=''; quickDeadline.value='';
+    });
+
+    openQuizBtn.addEventListener('click', () => {
+      document.getElementById('dashboardCard').style.display = 'none';
+      quizCard.style.display = 'block';
+      cardIndex = 0; showAnswer=false; renderFlashcard();
+    });
+    closeQuizBtn.addEventListener('click', () => {
+      quizCard.style.display = 'none';
+      document.getElementById('dashboardCard').style.display = 'block';
+    });
+
+    flashcard.addEventListener('click', () => {
+      showAnswer = !showAnswer;
+      renderFlashcard();
+    });
+    prevCardBtn.addEventListener('click', () => {
+      cardIndex = (cardIndex - 1 + flashcards.length) % flashcards.length;
+      showAnswer = false; renderFlashcard();
+    });
+    nextCardBtn.addEventListener('click', () => {
+      cardIndex = (cardIndex + 1) % flashcards.length;
+      showAnswer = false; renderFlashcard();
+    });
+
+    // close focus when timer done or user wants to go back (click on timer area)
+    timerDisplay.addEventListener('click', () => {
+      // stop timer and go back to dashboard
+      stopTimer();
+      focusCard.style.display = 'none';
+      document.getElementById('dashboardCard').style.display = 'block';
+      saveState();
+    });
+
+    // --- initial render
+    function renderAll(){
+      // onboarding visibility
+      onboardingCard.style.display = state.hideOnboarding ? 'none' : 'block';
+      renderCourses();
+      renderProgress();
+      renderFlashcard();
+    }
+
+    // initialize default timer text
+    timerDisplay.textContent = formatTime(timerSeconds);
+
+    // hydrate state (compute totals & streak)
+    updateStreak();
+    // compute total minutes (if not present)
+    if(!state.totalMinutes){
+      state.totalMinutes = state.sessions.reduce((s,cv)=>s+ (cv.minutes||0), 0);
+    }
+    saveState();
+    renderAll();
+
+    // Save periodically (safety)
+    setInterval(saveState, 5000);
+
+    // close cards when clicking outside (mobile convenience)
+    document.addEventListener('visibilitychange', () => {
+      // when coming back to the tab, re-render to update streak/date sensitive things
+      renderAll();
+    });
+  </script>
+</body>
+</html>
